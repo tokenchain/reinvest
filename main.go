@@ -388,8 +388,7 @@ func SwapWithRetry(amount *big.Int, tokenA, tokenB, router string, retryCount in
 			keepSwap = false
 			sendAmountToWallet, err := chain.GetTxAmount(tokenB, "", wallet, _tx)
 			if err != nil {
-				//log.Println(red("Search Real Amount Token B To Wallet Error: " + err.Error()))
-
+				log.Println("Swap Error: " + err.Error())
 				time.Sleep(time.Minute * 5)
 				count++
 				continue
@@ -481,6 +480,7 @@ func Swap(rewardAmount *big.Int, from, to string, router string, client *ethclie
 		return nil, err
 	}
 	factory, err := swap.NewSwapFactory(swapRouter.Factory, client, c)
+
 
 	wishAmount, err := factory.WishExchange(rewardAmount, from, to)
 	minExchange := factory.Calc(wishAmount[1], 0.005)

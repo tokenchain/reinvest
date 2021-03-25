@@ -340,7 +340,7 @@ func (c *Chain) Approve(tokenAddress string, contractAddress string, amount *big
 	if err != nil {
 		return false, err
 	}
-	f, _ := os.Open("./abi/hrc20.abi")
+	f, _ := os.Open(utils.BasePath("/abi/hrc20.abi"))
 	defer f.Close()
 	abiContent, _ := ioutil.ReadAll(f)
 	ABI, err := abi.JSON(strings.NewReader(string(abiContent)))

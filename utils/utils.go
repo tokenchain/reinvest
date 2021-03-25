@@ -3,6 +3,8 @@ package utils
 import (
 	"encoding/hex"
 	"math/big"
+	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -70,6 +72,20 @@ func ToDecimal(ivalue interface{}, decimals int) decimal.Decimal {
 	result := num.Div(mul)
 
 	return result
+}
+
+//BasePath 根目录
+func BasePath(subpath string) string {
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		return ""
+	}
+	pathRune := []rune(subpath)
+	if string(pathRune[0:1]) == "/" {
+		subpath = string(pathRune[1:])
+	}
+
+	return dir + "/" + subpath
 }
 
 // ToWei decimals to wei

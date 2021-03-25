@@ -53,7 +53,7 @@ func (c *SwapRouter) SwapExactTokenTo(fromToken, toToken string, sendAmount, amo
 	if err != nil {
 		return nil, err
 	}
-	f, _ := os.Open("./abi/swap_router.abi")
+	f, _ := os.Open(utils.BasePath("/abi/swap_router.abi"))
 	defer f.Close()
 	abiContent, _ := ioutil.ReadAll(f)
 	ABI, err := abi.JSON(strings.NewReader(string(abiContent)))
@@ -121,7 +121,7 @@ func (c *SwapRouter) AddLiquidity(tokenA, tokenB string, wishA, wishB, minA, min
 	if err != nil {
 		return nil, err
 	}
-	f, _ := os.Open("./abi/swap_router.abi")
+	f, _ := os.Open(utils.BasePath("/abi/swap_router.abi"))
 	defer f.Close()
 	abiContent, _ := ioutil.ReadAll(f)
 	ABI, err := abi.JSON(strings.NewReader(string(abiContent)))
