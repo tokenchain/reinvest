@@ -51,7 +51,7 @@ type PoolInfo struct {
 }
 
 func (c *Chain) CheckPrivateKey(key string) (string, error) {
-	privateKey, err := crypto.HexToECDSA(c.PrivateKey)
+	privateKey, err := crypto.HexToECDSA(key)
 	if err != nil {
 		return "", err
 	}

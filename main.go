@@ -2,10 +2,11 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
-	"golang.org/x/crypto/ssh/terminal"
+	"github.com/manifoldco/promptui"
 	"os"
 	"reinvest/core/chain"
 	"reinvest/core/swap"
@@ -36,68 +37,85 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Pool Id: ")
-	poolIDString, _ := reader.ReadString('\n')
-	poolIDString = strings.Replace(poolIDString, "\n", "", -1)
-	if poolIDString == "" {
-		fmt.Println(red("Pool Id Empty "))
+	poolIdValidate := func(input string) error {
+		_, err := strconv.Atoi(input)
+		if err != nil {
+			return errors.New("Invalid Pool ID")
+		}
+		return nil
+	}
+	prompt := promptui.Prompt{
+		Label:    "Pool ID",
+		Validate: poolIdValidate,
+	}
+
+	result, err := prompt.Run()
+	if err != nil {
+		fmt.Printf("Prompt failed %v\n", err)
 		return
 	}
-	poolID, err := strconv.Atoi(poolIDString)
+	poolID, err := strconv.Atoi(result)
 	if err != nil {
-		fmt.Println(red("Invaild Pool Id"))
+		fmt.Println("Invalid Pool ID")
+		pause()
 		return
 	}
 	chain := &chain.Chain{
 		Client: client,
 	}
-	count := 0
-	for {
-		if count >= 4 {
-			fmt.Print("Too many attempts Press Any Key to Exit...")
-			bufio.NewReader(os.Stdin).ReadBytes('\n')
-			return
-		}
-		fmt.Print("Enter Private Key: ")
 
-		bytePrivateKey, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+	//if count >= 4 {
+	//	fmt.Print("Too many attempts Press Any Key to Exit...")
+	//	bufio.NewReader(os.Stdin).ReadBytes('\n')
+	//	return
+	//}
+	privateValidate := func(input string) error {
+		input = strings.Replace(input, " ", "", -1)
+		// 去除换行符
+		input = strings.Replace(input, "\n", "", -1)
+		wallet, err := chain.CheckPrivateKey(input)
 		if err != nil {
-			fmt.Println(red("Invaild Private Key "))
-			count++
-			continue
-		}
-		privateKey := string(bytePrivateKey)
-		if err != nil {
-			fmt.Println(red("Invaild Private Key "))
-			count++
+			return fmt.Errorf("Invaild Private Key ")
 
-			continue
 		}
-		walletAddress, err := chain.CheckPrivateKey(privateKey)
-		if err != nil {
-			fmt.Println(red("Invaild Private Key "))
-			count++
-
-			continue
+		if wallet == "" {
+			return errors.New("Invaild Private Key ")
 		}
-		if walletAddress == "" {
-			fmt.Println(red("Invaild Private Key "))
-			count++
-
-			continue
-		}
-		wallet = walletAddress
-		chain.PrivateKey = privateKey
-		break
-
+		return nil
 	}
+	pk := promptui.Prompt{
+		Label:    "Private Key",
+		Validate: privateValidate,
+		Mask:    '*',
+	}
+
+	privateKey, err := pk.Run()
+
+	if err != nil {
+		fmt.Println(red(err.Error()))
+		pause()
+		return
+	}
+	walletAddress, err := chain.CheckPrivateKey(privateKey)
+	if err != nil {
+		fmt.Println(err.Error())
+		pause()
+		return
+	}
+	if walletAddress == "" {
+		fmt.Println("Invaild Private Key")
+		pause()
+		return
+	}
+	wallet = walletAddress
+	chain.PrivateKey = privateKey
 
 	//addLiquidity(big.NewInt(275651401900), big.NewInt(8156087518776), "0x25d2e80cb6b86881fd7e07dd263fb79f4abe033c", "0xa71edc38d189767582c38a3145b5873052c3e47a", client, chain)
 	farmInfo, err := chain.GetPoolInfo(farmAddress, poolID)
 	if err != nil {
 		log.Printf("Get Farm  err  %w ", red(err))
-
+		pause()
+		return
 	}
 
 	writer := uilive.New()
@@ -109,19 +127,27 @@ func main() {
 	address0, address1, err := LpToken.Pair()
 	if err != nil {
 		log.Printf("Get Token Pair Info Err %w  \n", err)
+		pause()
+		return
 	}
 	swapRouter, err := swap.NewSwapRouter(router, client, chain)
 	if err != nil {
 		log.Printf("Get Router  Err %w  \n", err)
+		pause()
+		return
 
 	}
 	factory, err := swap.NewSwapFactory(swapRouter.Factory, client, chain)
 	if err != nil {
 		log.Printf("Get Factory  Err %w  \n", err)
+		pause()
+		return
 	}
 	sortRes, err := factory.SwapContract.SortTokens(&bind.CallOpts{}, common.HexToAddress(address0), common.HexToAddress(address1))
 	if err != nil {
 		log.Printf("Sort Tokens  Err %w  \n", err)
+		pause()
+		return
 	} else {
 		address0 = sortRes.Token0.String()
 		address1 = sortRes.Token1.String()
@@ -136,6 +162,7 @@ func main() {
 	tokenAInfo, err := chain.GetMyTokenInfo(tokenA)
 	if err != nil {
 		log.Printf("Get My Token A Info  Err  %s \n", red(err))
+
 	}
 	tokenBInfo, err := chain.GetMyTokenInfo(tokenB)
 	if err != nil {
@@ -364,4 +391,10 @@ func Swap(rewardAmount *big.Int, from, to string, router string, client *ethclie
 	}
 	return tx, nil
 
+}
+
+func pause() {
+	fmt.Print("Press Any Key to Exit...")
+	bufio.NewReader(os.Stdin).ReadBytes('\n')
+	return
 }
