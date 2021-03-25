@@ -214,13 +214,17 @@ func main() {
 	if err != nil {
 		log.Printf("Get My Token B Info  Err  %s \n", red(err))
 	}
-	//fmt.Println("")
 	fmt.Println("Start...")
-	time.Sleep(time.Second * 2)
+	Start(farmInfo, farmAddress, poolID, chain, rewardTokenInfo, rewardToken, tokenA, tokenB, router, client, tokenAInfo, tokenBInfo)
+	timer := time.NewTimer(time.Minute * time.Duration(reinvestInterval))
 	for {
-		Start(farmInfo, farmAddress, poolID, chain, rewardTokenInfo, rewardToken, tokenA, tokenB, router, client, tokenAInfo, tokenBInfo)
-		time.Sleep(time.Minute * time.Duration(reinvestInterval))
-
+		select {
+		case <-timer.C:
+			log.Println(time.Now().Format("2006-01-02 15:04:05"))
+			time.Sleep(time.Second * 10)
+			Start(farmInfo, farmAddress, poolID, chain, rewardTokenInfo, rewardToken, tokenA, tokenB, router, client, tokenAInfo, tokenBInfo)
+			timer.Reset(time.Minute * time.Duration(reinvestInterval))
+		}
 	}
 
 }
@@ -481,7 +485,6 @@ func Swap(rewardAmount *big.Int, from, to string, router string, client *ethclie
 		return nil, err
 	}
 	factory, err := swap.NewSwapFactory(swapRouter.Factory, client, c)
-
 
 	wishAmount, err := factory.WishExchange(rewardAmount, from, to)
 	minExchange := factory.Calc(wishAmount[1], 0.005)
