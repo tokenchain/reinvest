@@ -10,6 +10,7 @@ import (
 	"os"
 	"reinvest/core/chain"
 	"reinvest/core/swap"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -23,16 +24,35 @@ import (
 	"reinvest/utils"
 )
 
-var blue = color.New(color.FgHiBlue).SprintFunc()
-var green = color.New(color.FgHiGreen).SprintFunc()
-var red = color.New(color.FgHiRed).SprintFunc()
+var blue func(a ...interface{}) string
+var green func(a ...interface{}) string
+var red func(a ...interface{}) string
+var wallet string
 
 func main() {
+	sysType := runtime.GOOS
+
+	if sysType == "linux" || sysType == "darwin" {
+		blue = color.New(color.FgHiBlue).SprintFunc()
+		green = color.New(color.FgHiGreen).SprintFunc()
+		red = color.New(color.FgHiRed).SprintFunc()
+
+		// LINUX系统
+	} else {
+		blue = func(a ...interface{}) string {
+			return fmt.Sprint(a...)
+		}
+		green = func(a ...interface{}) string {
+			return fmt.Sprint(a...)
+		}
+		red = func(a ...interface{}) string {
+			return fmt.Sprint(a...)
+		}
+	}
 
 	var router = "0xED7d5F38C79115ca12fe6C0041abb22F0A06C300"
 	var rewardToken = "0x25d2e80cb6b86881fd7e07dd263fb79f4abe033c"
 	var farmAddress = "0xFB03e11D93632D97a8981158A632Dd5986F5E909"
-	wallet := ""
 	client, err := ethclient.Dial("https://http-mainnet-node.huobichain.com")
 	if err != nil {
 		log.Fatal(err)
@@ -86,7 +106,7 @@ func main() {
 	pk := promptui.Prompt{
 		Label:    "Private Key",
 		Validate: privateValidate,
-		Mask:    '*',
+		Mask:     '*',
 	}
 
 	privateKey, err := pk.Run()
@@ -107,6 +127,7 @@ func main() {
 		pause()
 		return
 	}
+
 	wallet = walletAddress
 	chain.PrivateKey = privateKey
 
@@ -172,6 +193,7 @@ func main() {
 	fmt.Println("Start...")
 	time.Sleep(time.Millisecond * 1000)
 	for {
+
 		userInfo, err := chain.GetFarmUserInfo(farmAddress, wallet, poolID)
 		lpToken, err := chain.TokenInfo(farmInfo.LpToken)
 		if err != nil {
@@ -196,125 +218,123 @@ func main() {
 			tx, err := chain.Deposit(farmAddress, big.NewInt(0), poolID)
 			if err != nil {
 				log.Println(red("Harvest error: " + err.Error()))
+				time.Sleep(time.Minute * 5)
+
 				continue
 			}
 			fmt.Println(blue(fmt.Sprintf("Harvest Reward Tx: %s ", tx.Hash().String())))
 			txStatus, _tx := chain.WaitForBlockCompletation(tx.Hash().String())
 			if txStatus != 1 {
 				fmt.Println(red("Harvest Err Tx :" + tx.Hash().String()))
-			} else {
-				fmt.Println(green("Harvest Success Tx:" + tx.Hash().String()))
 			}
 			if txStatus != 1 {
+				time.Sleep(time.Minute * 5)
+
 				continue
 			}
 			sendRewardAmountToWallet, err := chain.GetTxAmount(rewardToken, farmAddress, wallet, _tx)
 			if err != nil {
 				log.Println(red("Search Real Reward Amount To Wallet Error: " + err.Error()))
+				time.Sleep(time.Minute * 5)
 				continue
 			}
 			realPendingRewardAmount = sendRewardAmountToWallet
-			fmt.Println(green(utils.ToDecimal(realPendingRewardAmount, int(rewardTokenInfo.Decimals)).String()+" "+rewardTokenInfo.Symbol) + " -> " + wallet)
+			fmt.Println(green(utils.ToDecimal(realPendingRewardAmount, int(rewardTokenInfo.Decimals)).String()+" "+rewardTokenInfo.Symbol + " -> " + wallet))
 			avg := new(big.Int).Div(realPendingRewardAmount, big.NewInt(2))
 			realTokenASwapAmount := big.NewInt(0)
 			if strings.ToLower(tokenA) != strings.ToLower(rewardToken) {
-				swapTx, err := Swap(avg, rewardToken, tokenA, router, client, chain)
+				sendAmountToWallet, swapTxHash, err := SwapWithRetry(avg, rewardToken, tokenA, router, 10, client, chain)
 				if err != nil {
-					log.Println(red("swap error " + err.Error()))
+					log.Println(red("swap error " + err.Error() + " " + swapTxHash))
+					time.Sleep(time.Minute * 5)
 					continue
 				}
-				fmt.Println(blue(fmt.Sprintf("MDX -> %s Tx: %s ", tokenAInfo.Symbol, swapTx.Hash().String())))
-				swapTxStatus, _tx := chain.WaitForBlockCompletation(swapTx.Hash().String())
-				if swapTxStatus == 1 {
-					log.Println(green("Swap MDX -> " + tokenAInfo.Symbol + " Success Tx: " + swapTx.Hash().String()))
-				} else {
-					log.Println(red("Swap  Token A Error Tx: " + swapTx.Hash().String()))
-				}
-				if swapTxStatus != 1 {
-					continue
-				}
-
-				sendAmountToWallet, err := chain.GetTxAmount(tokenA, "", wallet, _tx)
-				if err != nil {
-					log.Println(red("Search Real Amount Token A To Wallet Error: " + err.Error()))
-					continue
-				}
+				fmt.Println(
+					green(
+						fmt.Sprintf(
+							"Swap %s %s -> %s %s Tx: %s",
+							utils.ToDecimal(avg, int(rewardTokenInfo.Decimals)).String(),
+							rewardTokenInfo.Symbol,
+							utils.ToDecimal(sendAmountToWallet, int(tokenAInfo.Decimals)),
+							tokenAInfo.Symbol,
+							swapTxHash,
+						),
+					),
+				)
 				realTokenASwapAmount = sendAmountToWallet
-				fmt.Println(green(utils.ToDecimal(realTokenASwapAmount, int(tokenAInfo.Decimals)).String()+" "+tokenAInfo.Symbol) + " -> " + wallet)
 			} else {
 				realTokenASwapAmount = avg
 			}
 			time.Sleep(time.Second * 2)
 			realTokenBSwapAmount := big.NewInt(0)
 			if strings.ToLower(tokenB) != strings.ToLower(rewardToken) {
-				swapTx, err := Swap(avg, rewardToken, tokenB, router, client, chain)
+				sendAmountToWallet, swapTxHash, err := SwapWithRetry(avg, rewardToken, tokenB, router, 10, client, chain)
 				if err != nil {
-					log.Println(red("swap error " + err.Error()))
+					log.Println(red("swap error " + err.Error() + " " + swapTxHash))
+					time.Sleep(time.Minute * 5)
 					continue
 				}
-				fmt.Println(blue(fmt.Sprintf("Swap MDX -> %s Tx: %s ", tokenBInfo.Symbol, green(swapTx.Hash().String()))))
-				swapTxStatus, _tx := chain.WaitForBlockCompletation(swapTx.Hash().String())
-				if swapTxStatus == 1 {
-					log.Println(green("Swap Token B Success Tx: " + swapTx.Hash().String()))
-				} else {
-					log.Println(red("Swap Token B Error Tx: " + swapTx.Hash().String()))
-				}
-				if swapTxStatus != 1 {
-					continue
-				}
-				sendAmountToWallet, err := chain.GetTxAmount(tokenB, "", wallet, _tx)
-				if err != nil {
-					log.Println(red("Search Real Amount Token B To Wallet Error: " + err.Error()))
-					continue
-				}
+				fmt.Println(
+					green(
+						fmt.Sprintf(
+							"Swap %s %s -> %s %s Tx: %s",
+							utils.ToDecimal(avg, int(rewardTokenInfo.Decimals)).String(),
+							rewardTokenInfo.Symbol,
+							utils.ToDecimal(sendAmountToWallet, int(tokenBInfo.Decimals)),
+							tokenBInfo.Symbol,
+							swapTxHash,
+						),
+					),
+
+
+				)
 				realTokenBSwapAmount = sendAmountToWallet
-				fmt.Println(green(utils.ToDecimal(realTokenBSwapAmount, int(tokenBInfo.Decimals)).String()+" "+tokenBInfo.Symbol) + " -> " + wallet)
 
 			} else {
 				realTokenBSwapAmount = avg
 			}
 			time.Sleep(time.Second * 2)
-			//fmt.Printf("total has %s %s swap %s %s ->  %s \n", rewardTokenInfo.Balance, rewardTokenInfo.Symbol, utils.ToDecimal(avg, int(rewardTokenInfo.Decimals)), rewardTokenInfo.Symbol, toTokenInfo.Symbol)
 
-			addLiquidityTx, err := addLiquidity(realTokenASwapAmount, realTokenBSwapAmount, router, tokenA, tokenB, client, chain)
+			addLiquidityTxHash, err := AddLiquidityRetry(realTokenASwapAmount, realTokenBSwapAmount, tokenA, tokenB, 10, router, client, chain)
 			if err != nil {
-				log.Println(red("Rreinvest Error: ", err.Error()))
-				continue
-			}
-			fmt.Println(blue(fmt.Sprintf("addLiquidity Tx : %s \n", addLiquidityTx.Hash().String())))
-			addLiquidityTxStatus, _ := chain.WaitForBlockCompletation(addLiquidityTx.Hash().String())
-			if addLiquidityTxStatus == 1 {
-				log.Println(green("addLiquidity success txh: " + addLiquidityTx.Hash().String()))
-			} else {
-				log.Println(red("addLiquidity error txh: " + addLiquidityTx.Hash().String()))
-			}
-			if addLiquidityTxStatus != 1 {
+				log.Println(red("Rreinvest Error: ", err.Error()+addLiquidityTxHash))
+				time.Sleep(time.Minute * 5)
 				continue
 			}
 
 			lpTokenApprove, err := chain.Approve(farmInfo.LpToken, farmAddress, realTokenBSwapAmount)
 			if err != nil {
 				fmt.Println("Approve LP Token Error: " + red(err))
+				time.Sleep(time.Minute * 5)
+
 				continue
 			}
 			if !lpTokenApprove {
 				fmt.Println(red("Approve LP Token  Fail"))
+				time.Sleep(time.Minute * 5)
+
 				continue
 			}
 			LpTokenBalance, err := chain.GetMyTokenInfo(farmInfo.LpToken)
 			if err != nil {
 				log.Printf("Get My LP Token Info  Err  %s \n", red(err))
+				time.Sleep(time.Minute * 5)
+
 				continue
 			}
-			fmt.Println(blue(fmt.Sprintf("%s %s -> Farm ", utils.ToDecimal(LpTokenBalance.Balance, int(LpTokenBalance.Decimals)).String(), LpTokenBalance.Symbol)))
+			fmt.Println(green(fmt.Sprintf("%s %s -> Farm ", utils.ToDecimal(LpTokenBalance.Balance, int(LpTokenBalance.Decimals)).String(), LpTokenBalance.Symbol)))
 			depTx, err := chain.Deposit(farmAddress, LpTokenBalance.Balance, poolID)
 			if err != nil {
 				fmt.Println(red("Deposit Error: " + err.Error()))
+				time.Sleep(time.Minute * 5)
+
 				continue
 			}
 			depTxStatus, _ := chain.WaitForBlockCompletation(depTx.Hash().String())
 			if depTxStatus != 1 {
 				log.Println(red("Deposit Err Txh :" + depTx.Hash().String()))
+				time.Sleep(time.Minute * 5)
+
 				continue
 
 			} else {
@@ -325,6 +345,73 @@ func main() {
 		time.Sleep(time.Minute * 5)
 	}
 	writer.Stop()
+
+}
+
+func SwapWithRetry(amount *big.Int, tokenA, tokenB, router string, retryCount int, client *ethclient.Client, chain *chain.Chain) (*big.Int, string, error) {
+	count := 1
+	keepSwap := true
+	var swapTxHash string
+	for {
+
+		if count >= retryCount {
+			return nil, swapTxHash, errors.New("Swap  Too Many errors")
+		}
+		if count > 1 {
+			fmt.Printf("Try Swap %d \n", count)
+		}
+		if keepSwap {
+			tx, err := Swap(amount, tokenA, tokenB, router, client, chain)
+			if err != nil {
+				//log.Println(red("swap error " + err.Error()))
+				count++
+				continue
+			}
+			swapTxHash = tx.Hash().String()
+		}
+		//fmt.Println(blue(fmt.Sprintf("Swap MDX -> %s Tx: %s ", tokenBInfo.Symbol, green(swapTx.Hash().String()))))
+		swapTxStatus, _tx := chain.WaitForBlockCompletation(swapTxHash)
+		if swapTxStatus == 1 {
+			keepSwap = false
+			sendAmountToWallet, err := chain.GetTxAmount(tokenB, "", wallet, _tx)
+			if err != nil {
+				//log.Println(red("Search Real Amount Token B To Wallet Error: " + err.Error()))
+
+				time.Sleep(time.Minute * 5)
+				count++
+				continue
+			}
+			return sendAmountToWallet, swapTxHash, nil
+		}
+
+		count++
+
+	}
+
+}
+func AddLiquidityRetry(wishA *big.Int, wishB *big.Int, tokenA, tokenB string, retryCount int, router string, client *ethclient.Client, chain *chain.Chain) (string, error) {
+	count := 1
+	var swapTxHash string
+	for {
+		if count >= retryCount {
+			return swapTxHash, errors.New("Swap  Too Many errors")
+		}
+		if count > 1 {
+			fmt.Printf("Try AddLiquidity %d \n", count)
+		}
+		addLiquidityTx, err := addLiquidity(wishA, wishB, router, tokenA, tokenB, client, chain)
+		if err != nil {
+			count++
+			continue
+		}
+		swapTxHash = addLiquidityTx.Hash().String()
+		//fmt.Println(blue(fmt.Sprintf("addLiquidity Tx : %s \n", addLiquidityTx.Hash().String())))
+		addLiquidityTxStatus, _ := chain.WaitForBlockCompletation(addLiquidityTx.Hash().String())
+		if addLiquidityTxStatus == 1 {
+			return swapTxHash, nil
+		}
+		count++
+	}
 
 }
 
