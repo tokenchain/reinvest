@@ -18,7 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/fatih/color"
-	"github.com/gosuri/uilive"
 	"log"
 	"math/big"
 	"reinvest/utils"
@@ -216,10 +215,9 @@ func main() {
 		log.Printf("Get My Token B Info  Err  %s \n", red(err))
 	}
 	fmt.Println("Start...")
-	Start(farmInfo, farmAddress, poolID, chain, rewardTokenInfo, rewardToken, tokenA, tokenB, router, client, tokenAInfo, tokenBInfo)
+	//Start(farmInfo, farmAddress, poolID, chain, rewardTokenInfo, rewardToken, tokenA, tokenB, router, client, tokenAInfo, tokenBInfo)
+
 	timer := time.NewTimer(time.Minute * time.Duration(reinvestInterval))
-	writer := uilive.New()
-	writer.Start()
 
 	for {
 		select {
@@ -227,10 +225,9 @@ func main() {
 			Start(farmInfo, farmAddress, poolID, chain, rewardTokenInfo, rewardToken, tokenA, tokenB, router, client, tokenAInfo, tokenBInfo)
 			timer.Reset(time.Minute * time.Duration(reinvestInterval))
 		default:
-			fmt.Fprintln(writer, "%s", time.Now().Format("2006-01-02 15:04:05"))
+			_ = 0
 		}
 	}
-	writer.Stop()
 
 }
 
