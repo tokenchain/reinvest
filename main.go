@@ -220,12 +220,11 @@ func main() {
 	for {
 		select {
 		case <-timer.C:
-			log.Println(time.Now().Format("2006-01-02 15:04:05"))
-			time.Sleep(time.Second * 10)
 			Start(farmInfo, farmAddress, poolID, chain, rewardTokenInfo, rewardToken, tokenA, tokenB, router, client, tokenAInfo, tokenBInfo)
 			timer.Reset(time.Minute * time.Duration(reinvestInterval))
 		}
 	}
+	
 
 }
 
