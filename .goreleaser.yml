@@ -7,13 +7,10 @@ before:
 builds:
   - env:
       - CGO_ENABLED=0
-      - id="demoproj"
-      - binary="demo1"
     goos:
       - darwin
       - freebsd
       - linux
-      - netbsd
       - openbsd
       - windows
 archives:

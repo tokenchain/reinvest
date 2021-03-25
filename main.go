@@ -332,7 +332,7 @@ func Swap(rewardAmount *big.Int, from, to string, router string, client *ethclie
 	factory, err := swap.NewSwapFactory(swapRouter.Factory, client, c)
 
 	wishAmount, err := factory.WishExchange(rewardAmount, from, to)
-	minExchange := factory.Calc(wishAmount[1], 0.001)
+	minExchange := factory.Calc(wishAmount[1], 0.005)
 
 	tx, err := swapRouter.SwapExactTokenTo(from, to, rewardAmount, minExchange)
 	if err != nil {
