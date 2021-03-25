@@ -11,8 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"io/ioutil"
-	"os"
 	"reinvest/farm/mdex"
 	"reinvest/utils"
 	"strings"
@@ -340,10 +338,8 @@ func (c *Chain) Approve(tokenAddress string, contractAddress string, amount *big
 	if err != nil {
 		return false, err
 	}
-	f, _ := os.Open(utils.BasePath("/abi/hrc20.abi"))
-	defer f.Close()
-	abiContent, _ := ioutil.ReadAll(f)
-	ABI, err := abi.JSON(strings.NewReader(string(abiContent)))
+
+	ABI, err := abi.JSON(strings.NewReader(token.Hrc20ABI))
 	if err != nil {
 		return false, err
 	}

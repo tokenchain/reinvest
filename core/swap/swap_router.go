@@ -8,9 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"io/ioutil"
 	"math/big"
-	"os"
 	"reinvest/core/chain"
 	"reinvest/farm/mdex"
 	"reinvest/utils"
@@ -53,10 +51,7 @@ func (c *SwapRouter) SwapExactTokenTo(fromToken, toToken string, sendAmount, amo
 	if err != nil {
 		return nil, err
 	}
-	f, _ := os.Open(utils.BasePath("/abi/swap_router.abi"))
-	defer f.Close()
-	abiContent, _ := ioutil.ReadAll(f)
-	ABI, err := abi.JSON(strings.NewReader(string(abiContent)))
+	ABI, err := abi.JSON(strings.NewReader(mdex.SwapRouterABI))
 	if err != nil {
 		return nil, err
 	}
@@ -121,10 +116,7 @@ func (c *SwapRouter) AddLiquidity(tokenA, tokenB string, wishA, wishB, minA, min
 	if err != nil {
 		return nil, err
 	}
-	f, _ := os.Open(utils.BasePath("/abi/swap_router.abi"))
-	defer f.Close()
-	abiContent, _ := ioutil.ReadAll(f)
-	ABI, err := abi.JSON(strings.NewReader(string(abiContent)))
+	ABI, err := abi.JSON(strings.NewReader(string(mdex.SwapRouterABI)))
 	if err != nil {
 		return nil, err
 		//log.Fatal(err)

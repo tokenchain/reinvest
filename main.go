@@ -83,6 +83,7 @@ func main() {
 	result, err := prompt.Run()
 	if err != nil {
 		fmt.Printf("Prompt failed %v\n", err)
+		pause()
 		return
 	}
 	poolID, err := strconv.Atoi(result)
@@ -137,6 +138,7 @@ func main() {
 		pause()
 		return
 	}
+
 	reinvestInterval, _ = strconv.Atoi(interval)
 	if reinvestInterval == 0 {
 		reinvestInterval = 10
@@ -310,7 +312,6 @@ func Start(farmInfo *chain.PoolInfo, farmAddress string, poolID int, chain *chai
 						swapTxHash,
 					),
 				),
-
 
 			)
 			realTokenBSwapAmount = sendAmountToWallet
