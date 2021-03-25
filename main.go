@@ -11,7 +11,6 @@ import (
 	"reinvest/core/swap"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -32,6 +31,7 @@ func main() {
 	var router = "0xED7d5F38C79115ca12fe6C0041abb22F0A06C300"
 	var rewardToken = "0x25d2e80cb6b86881fd7e07dd263fb79f4abe033c"
 	var farmAddress = "0xFB03e11D93632D97a8981158A632Dd5986F5E909"
+	wallet := ""
 	client, err := ethclient.Dial("https://http-mainnet-node.huobichain.com")
 	if err != nil {
 		log.Fatal(err)
@@ -40,12 +40,6 @@ func main() {
 	fmt.Print("Pool Id: ")
 	poolIDString, _ := reader.ReadString('\n')
 	poolIDString = strings.Replace(poolIDString, "\n", "", -1)
-	fmt.Print("Enter Private Key: ")
-	bytePrivateKey, err := terminal.ReadPassword(int(syscall.Stdin))
-	if err != nil {
-	}
-
-	privateKey := string(bytePrivateKey)
 	if poolIDString == "" {
 		fmt.Println(red("Pool Id Empty "))
 		return
@@ -55,10 +49,48 @@ func main() {
 		fmt.Println(red("Invaild Pool Id"))
 		return
 	}
-
 	chain := &chain.Chain{
-		Client:     client,
-		PrivateKey: privateKey,
+		Client: client,
+	}
+	count := 0
+	for {
+		if count >= 4 {
+			fmt.Print("Too many attempts Press Any Key to Exit...")
+			bufio.NewReader(os.Stdin).ReadBytes('\n')
+			return
+		}
+		fmt.Print("Enter Private Key: ")
+
+		bytePrivateKey, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			fmt.Println(red("Invaild Private Key "))
+			count++
+			continue
+		}
+		privateKey := string(bytePrivateKey)
+		if err != nil {
+			fmt.Println(red("Invaild Private Key "))
+			count++
+
+			continue
+		}
+		walletAddress, err := chain.CheckPrivateKey(privateKey)
+		if err != nil {
+			fmt.Println(red("Invaild Private Key "))
+			count++
+
+			continue
+		}
+		if walletAddress == "" {
+			fmt.Println(red("Invaild Private Key "))
+			count++
+
+			continue
+		}
+		wallet = walletAddress
+		chain.PrivateKey = privateKey
+		break
+
 	}
 
 	//addLiquidity(big.NewInt(275651401900), big.NewInt(8156087518776), "0x25d2e80cb6b86881fd7e07dd263fb79f4abe033c", "0xa71edc38d189767582c38a3145b5873052c3e47a", client, chain)
@@ -67,15 +99,7 @@ func main() {
 		log.Printf("Get Farm  err  %w ", red(err))
 
 	}
-	wallet, err := chain.CheckPrivateKey(privateKey)
-	if err != nil {
-		fmt.Println(red("Invaild Private Key "))
-		return
-	}
-	if wallet == "" {
-		fmt.Println(red("Invaild Private Key "))
-		return
-	}
+
 	writer := uilive.New()
 	writer.Start()
 	LpToken, err := swap.NewLpToken(farmInfo.LpToken, client)
