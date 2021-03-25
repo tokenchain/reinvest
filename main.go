@@ -215,8 +215,7 @@ func main() {
 		log.Printf("Get My Token B Info  Err  %s \n", red(err))
 	}
 	fmt.Println("Start...")
-	//Start(farmInfo, farmAddress, poolID, chain, rewardTokenInfo, rewardToken, tokenA, tokenB, router, client, tokenAInfo, tokenBInfo)
-
+	Start(farmInfo, farmAddress, poolID, chain, rewardTokenInfo, rewardToken, tokenA, tokenB, router, client, tokenAInfo, tokenBInfo)
 	timer := time.NewTimer(time.Minute * time.Duration(reinvestInterval))
 
 	for {
