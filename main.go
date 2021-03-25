@@ -118,7 +118,7 @@ func main() {
 		log.Printf("Get My Token B Info  Err  %s \n", red(err))
 	}
 	fmt.Println("")
-	log.Println("Start...")
+	fmt.Println("Start...")
 	time.Sleep(time.Millisecond * 1000)
 	for {
 		userInfo, err := chain.GetFarmUserInfo(farmAddress, wallet, poolID)
