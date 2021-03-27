@@ -79,7 +79,6 @@ func main() {
 		select {
 		case <-timer.C:
 			Run(farm)
-			timer.Reset(time.Minute * time.Duration(reinvestInterval))
 			fmt.Printf(
 				"Until %s Total gas used %s  rewards %s %s\n",
 				time.Now().Format("2006-01-02 15:04:05"),
@@ -87,6 +86,8 @@ func main() {
 				utils.ToDecimal(TotalReward, int(rewardToken.Decimals)),
 				rewardToken.Symbol,
 			)
+			timer.Reset(time.Minute * time.Duration(reinvestInterval))
+
 		default:
 			time.Sleep(time.Millisecond * 10)
 			_ = struct{}{}
