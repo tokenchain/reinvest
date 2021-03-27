@@ -7,8 +7,8 @@ import (
 	"reinvest/core/farm/config"
 	"reinvest/core/farm/mdex"
 	"reinvest/core/farm/pancake"
-	"reinvest/core/printer"
-	"reinvest/core/token"
+	"reinvest/printer"
+	"reinvest/token"
 )
 
 //var mdexProvider = wire.NewSet(pdf_service.New, wire.Bind(new(pdf.PdfCoreServer), new(*pdf_service.PdfServices)))

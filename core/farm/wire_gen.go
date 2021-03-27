@@ -8,8 +8,8 @@ package farm
 import (
 	"reinvest/core"
 	"reinvest/core/farm/config"
-	"reinvest/core/printer"
-	"reinvest/core/token"
+	"reinvest/printer"
+	"reinvest/token"
 )
 
 // Injectors from wire.go:

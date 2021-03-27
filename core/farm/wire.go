@@ -7,8 +7,8 @@ import (
 	"github.com/google/wire"
 	"reinvest/core"
 	"reinvest/core/farm/config"
-	"reinvest/core/printer"
-	"reinvest/core/token"
+	"reinvest/printer"
+	"reinvest/token"
 )
 
 func NewFarm() (Farm, func(), error) {

@@ -6,8 +6,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"math/big"
 	"reinvest/core/farm/config"
-	"reinvest/core/printer"
-	"reinvest/core/token"
+	"reinvest/printer"
+	"reinvest/token"
 	"reinvest/utils"
 )
 

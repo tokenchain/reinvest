@@ -9,8 +9,8 @@ import (
 	"math/big"
 	"os"
 	"reinvest/core/farm"
-	"reinvest/core/printer"
-	"reinvest/core/token"
+	"reinvest/printer"
+	"reinvest/token"
 	"reinvest/utils"
 	"runtime"
 	"strconv"
@@ -79,7 +79,7 @@ func main() {
 		select {
 		case <-timer.C:
 			Run(farm)
-			fmt.Printf(
+			log.Printf(
 				"Until %s Total gas used %s  rewards %s %s\n",
 				time.Now().Format("2006-01-02 15:04:05"),
 				utils.ToDecimal(token.GasUsed, 18),

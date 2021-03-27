@@ -9,8 +9,8 @@ import (
 	"log"
 	"math/big"
 	"reinvest/core/farm/config"
-	"reinvest/core/printer"
-	"reinvest/core/token"
+	"reinvest/printer"
+	"reinvest/token"
 	"reinvest/utils"
 )
 
