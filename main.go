@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/gosuri/uilive"
 	"github.com/manifoldco/promptui"
 	"log"
 	"math/big"
@@ -24,7 +23,6 @@ var TotalReward = big.NewInt(0)
 var print = printer.NewPrinter()
 
 func main() {
-
 
 	defer func() {
 		err := recover()
@@ -68,8 +66,6 @@ func main() {
 		reinvestInterval = 10
 	}
 
-	writer := uilive.New()
-	writer.Start()
 	if err := farm.Start(); err != nil {
 		print.Error(err.Error())
 		pause()
@@ -83,24 +79,20 @@ func main() {
 		select {
 		case <-timer.C:
 			Run(farm)
-
 			timer.Reset(time.Minute * time.Duration(reinvestInterval))
-		default:
-
-			fmt.Fprintf(
-				writer,
+			fmt.Printf(
 				"Until %s Total gas used %s  rewards %s %s\n",
 				time.Now().Format("2006-01-02 15:04:05"),
 				utils.ToDecimal(token.GasUsed, 18),
 				utils.ToDecimal(TotalReward, int(rewardToken.Decimals)),
 				rewardToken.Symbol,
 			)
+		default:
 			time.Sleep(time.Millisecond * 10)
 			_ = struct{}{}
 		}
 
 	}
-	writer.Stop()
 	return
 
 }
