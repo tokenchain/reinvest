@@ -1,4 +1,4 @@
-package swap
+package mdex
 
 import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -6,20 +6,19 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"log"
 	"math/big"
-	"reinvest/core/chain"
-	"reinvest/farm/mdex"
+	"reinvest/core/farm/mdex/contracts"
 	"reinvest/utils"
 )
 
 type SwapFactory struct {
 	Client       *ethclient.Client
-	SwapContract *mdex.Factory
-	Chain        *chain.Chain
+	SwapContract *contracts.Factory
 	Address      string
+	Farm         *MdexFarm
 }
 
-func NewSwapFactory(address string, client *ethclient.Client, chain *chain.Chain) (*SwapFactory, error) {
-	swapFactory, err := mdex.NewFactory(common.HexToAddress(address), client)
+func NewSwapFactory(address string, client *ethclient.Client, farm *MdexFarm) (*SwapFactory, error) {
+	swapFactory, err := contracts.NewFactory(common.HexToAddress(address), client)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +26,7 @@ func NewSwapFactory(address string, client *ethclient.Client, chain *chain.Chain
 		Address:      address,
 		Client:       client,
 		SwapContract: swapFactory,
-		Chain:        chain,
+		Farm:         farm,
 	}, nil
 
 }
@@ -53,27 +52,25 @@ func (c *SwapFactory) PairRatio(tokenA, tokenB string) (*big.Float, *big.Float, 
 	if err != nil {
 		return nil, nil, err
 	}
-	tokenAInfo, _ := c.Chain.TokenInfo(tokenA)
-	tokenBInfo, _ := c.Chain.TokenInfo(tokenB)
 
-	amountA := utils.ToWei("100", int(tokenAInfo.Decimals))
+	amountA := utils.ToWei("100", int(c.Farm.TokenAInfo.Decimals))
 	amountB, err := c.SwapContract.Quote(&bind.CallOpts{}, amountA, reserveA, reserveB)
 	if err != nil {
 		return nil, nil, err
 	}
-	realAmountA := utils.ToDecimal(amountA, int(tokenAInfo.Decimals))
-	realAmountB := utils.ToDecimal(amountB, int(tokenBInfo.Decimals))
+	realAmountA := utils.ToDecimal(amountA, int(c.Farm.TokenAInfo.Decimals))
+	realAmountB := utils.ToDecimal(amountB, int(c.Farm.TokenBInfo.Decimals))
 	realAmountAFloat, _ := realAmountA.Float64()
 	realAmountBFloat, _ := realAmountB.Float64()
 
-	total := new(big.Float).Add(realAmountA.BigFloat(),realAmountB.BigFloat())
-	log.Println("realAmountA:"+realAmountA.String())
-	log.Println("realAmountB:"+amountB.String())
+	total := new(big.Float).Add(realAmountA.BigFloat(), realAmountB.BigFloat())
+	log.Println("realAmountA:" + realAmountA.String())
+	log.Println("realAmountB:" + amountB.String())
 
-	log.Println("total:"+total.String())
+	log.Println("total:" + total.String())
 	reserveAPairRatio := new(big.Float).Quo(big.NewFloat(realAmountAFloat), total)
 	reserveBPairRatio := new(big.Float).Quo(big.NewFloat(realAmountBFloat), total)
-	return  reserveBPairRatio,reserveAPairRatio, nil
+	return reserveBPairRatio, reserveAPairRatio, nil
 }
 
 func (c *SwapFactory) TokenBPairAmount(tokenA, tokenB string, amountA *big.Int) (*big.Int, error) {

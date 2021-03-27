@@ -1,7 +1,10 @@
 package utils
 
 import (
+	"crypto/ecdsa"
 	"encoding/hex"
+	"errors"
+	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -74,6 +77,34 @@ func ToDecimal(ivalue interface{}, decimals int) decimal.Decimal {
 	return result
 }
 
+func WalletAddress(key string) string {
+	privateKey, err := crypto.HexToECDSA(key)
+	if err != nil {
+		return ""
+	}
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		//log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+		return ""
+	}
+	return crypto.PubkeyToAddress(*publicKeyECDSA).String()
+}
+
+func CheckPrivateKey(key string) (string, error) {
+	privateKey, err := crypto.HexToECDSA(key)
+	if err != nil {
+		return "", err
+	}
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return "", errors.New("Invaild Private Key")
+	}
+
+	return crypto.PubkeyToAddress(*publicKeyECDSA).String(), nil
+}
+
 //BasePath 根目录
 func BasePath(subpath string) string {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -141,3 +172,4 @@ func SigRSV(isig interface{}) ([32]byte, [32]byte, uint8) {
 
 	return R, S, V
 }
+

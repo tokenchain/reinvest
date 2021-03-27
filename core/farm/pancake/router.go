@@ -1,4 +1,4 @@
-package swap
+package pancake
 
 import (
 	"context"
@@ -9,8 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"math/big"
-	"reinvest/core/chain"
-	"reinvest/farm/mdex"
+	"reinvest/core/farm/pancake/contracts"
 	"reinvest/utils"
 	"strings"
 	"time"
@@ -18,14 +17,14 @@ import (
 
 type SwapRouter struct {
 	Client       *ethclient.Client
-	SwapContract *mdex.SwapRouter
-	Chain        *chain.Chain
+	SwapContract *contracts.SwapRouter
 	Address      string
 	Factory      string
+	Farm         *PancakeFarm
 }
 
-func NewSwapRouter(address string, client *ethclient.Client, chain *chain.Chain) (*SwapRouter, error) {
-	swapRouterContract, err := mdex.NewSwapRouter(common.HexToAddress(address), client)
+func NewSwapRouter(address string, client *ethclient.Client, Farm *PancakeFarm) (*SwapRouter, error) {
+	swapRouterContract, err := contracts.NewSwapRouter(common.HexToAddress(address), client)
 	if err != nil {
 		return nil, err
 	}
@@ -35,23 +34,22 @@ func NewSwapRouter(address string, client *ethclient.Client, chain *chain.Chain)
 		Address:      address,
 		Client:       client,
 		SwapContract: swapRouterContract,
-		Chain:        chain,
+		Farm:         Farm,
 	}, nil
 
 }
 func (c *SwapRouter) SwapExactTokenTo(fromToken, toToken string, sendAmount, amountMin *big.Int) (*types.Transaction, error) {
-	auth, err := c.Chain.CreateTx()
+	auth, err := c.Farm.TokenBasic.CreateTx()
 	if err != nil {
 		return nil, err
 	}
-	wallet := c.Chain.WalletAddress()
+	wallet := c.Farm.FarmConfig.Wallet
 	amountIn := sendAmount
-
 	gasPrice, err := c.Client.SuggestGasPrice(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	ABI, err := abi.JSON(strings.NewReader(mdex.SwapRouterABI))
+	ABI, err := abi.JSON(strings.NewReader(contracts.SwapRouterABI))
 	if err != nil {
 		return nil, err
 	}
@@ -63,13 +61,6 @@ func (c *SwapRouter) SwapExactTokenTo(fromToken, toToken string, sendAmount, amo
 	t := time.Now()
 	deadLine := t.Add(time.Hour * 24).Unix()
 	toContract := common.HexToAddress(c.Address)
-	//log.Println("amount  :" + amountIn.String())
-	//log.Println("amount min  :" + amountMin.String())
-	//log.Println("fromToken  :" + fromToken)
-	//log.Println("toToken  :" + toToken)
-	//log.Println("to  :" + wallet)
-	//log.Println("deadLine :" + string(deadLine))
-
 	txData, err := ABI.Pack("swapExactTokensForTokens", amountIn, amountMin, []common.Address{
 		common.HexToAddress(fromToken),
 		common.HexToAddress(toToken),
@@ -90,7 +81,7 @@ func (c *SwapRouter) SwapExactTokenTo(fromToken, toToken string, sendAmount, amo
 	}
 
 	auth.GasPrice = gasPrice
-	auth.From = common.HexToAddress(c.Chain.WalletAddress())
+	auth.From = common.HexToAddress(c.Farm.FarmConfig.Wallet)
 	auth.GasLimit = gas * 2
 	auth.Context = context.Background()
 	auth.Nonce = big.NewInt(int64(nonce))
@@ -106,17 +97,17 @@ func (c *SwapRouter) SwapExactTokenTo(fromToken, toToken string, sendAmount, amo
 }
 
 func (c *SwapRouter) AddLiquidity(tokenA, tokenB string, wishA, wishB, minA, minB *big.Int) (*types.Transaction, error) {
-	auth, err := c.Chain.CreateTx()
+	auth, err := c.Farm.TokenBasic.CreateTx()
 	if err != nil {
 		return nil, err
 	}
 	toContract := common.HexToAddress(c.Address)
-	wallet := c.Chain.WalletAddress()
+	wallet := c.Farm.FarmConfig.Wallet
 	gasPrice, err := c.Client.SuggestGasPrice(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	ABI, err := abi.JSON(strings.NewReader(string(mdex.SwapRouterABI)))
+	ABI, err := abi.JSON(strings.NewReader(string(contracts.SwapRouterABI)))
 	if err != nil {
 		return nil, err
 		//log.Fatal(err)
@@ -127,15 +118,6 @@ func (c *SwapRouter) AddLiquidity(tokenA, tokenB string, wishA, wishB, minA, min
 	}
 	t := time.Now()
 	deadLine := t.Add(time.Hour * 2).Unix()
-
-	//log.Println("tokenA: " + tokenA)
-	//log.Println("tokenB: " + tokenB)
-	//
-	//log.Println("tokenAWishAdd: " + tokenAWishAdd)
-	//log.Println("tokenBWishAdd: " + tokenBWishAdd)
-	//log.Println("minA: " + amountAMin)
-	//log.Println("minB: " + amountBMin)
-
 	txData, err := ABI.Pack(
 		"addLiquidity",
 		common.HexToAddress(tokenA),
@@ -160,11 +142,10 @@ func (c *SwapRouter) AddLiquidity(tokenA, tokenB string, wishA, wishB, minA, min
 	}
 
 	auth.GasPrice = gasPrice
-	auth.From = common.HexToAddress(c.Chain.WalletAddress())
+	auth.From = common.HexToAddress(c.Farm.FarmConfig.Wallet)
 	auth.GasLimit = gas * 2
 	auth.Context = context.Background()
 	auth.Nonce = big.NewInt(int64(nonce))
-
 	tx, err := c.SwapContract.AddLiquidity(
 		auth,
 		common.HexToAddress(tokenA),
@@ -180,4 +161,36 @@ func (c *SwapRouter) AddLiquidity(tokenA, tokenB string, wishA, wishB, minA, min
 		return nil, err
 	}
 	return tx, nil
+}
+
+func (c *SwapRouter) TokenBPairAmount(tokenA, tokenB string, amountA *big.Int, lpToken *LpToken) (*big.Int, error) {
+	reserveA, reserveB, err := lpToken.GetReserves()
+	if err != nil {
+		return nil, err
+	}
+	minB, err := c.SwapContract.Quote(&bind.CallOpts{}, amountA, reserveA, reserveB)
+	if err != nil {
+		return nil, nil
+	}
+	return minB, nil
+}
+
+func (c *SwapRouter) TokenAPairAmount(tokenA, tokenB string, amountB *big.Int, lpToken *LpToken) (*big.Int, error) {
+	reserveA, reserveB, err := lpToken.GetReserves()
+	if err != nil {
+		return nil, err
+	}
+
+	minB, err := c.SwapContract.Quote(&bind.CallOpts{}, amountB, reserveB, reserveA)
+	if err != nil {
+		return nil, nil
+	}
+	return minB, nil
+}
+
+func (c *SwapRouter) WishExchange(amountIn *big.Int, fromToken, toToken string) ([]*big.Int, error) {
+	return c.SwapContract.GetAmountsOut(&bind.CallOpts{}, amountIn, []common.Address{
+		common.HexToAddress(fromToken),
+		common.HexToAddress(toToken),
+	})
 }
