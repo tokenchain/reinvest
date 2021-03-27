@@ -44,6 +44,7 @@ func (c *MdexFarm) RewardToken() *token.Token {
 
 }
 func (c *MdexFarm) Harvest() (*big.Int, error) {
+	c.Printer.Info("Harvest Reward...")
 	pendingReward, err := c.Pending(c.FarmConfig.NetWork.FarmAddress, c.FarmConfig.Wallet, int(c.FarmConfig.PooID))
 	if err != nil {
 		return nil, err

@@ -40,6 +40,7 @@ func (c *PancakeFarm) RewardToken() *token.Token {
 	return c.RewardTokenInfo
 }
 func (c *PancakeFarm) Harvest() (*big.Int, error) {
+	c.Printer.Info("Harvest Reward...")
 	pendingReward, err := c.Pending(c.FarmConfig.NetWork.FarmAddress, c.FarmConfig.Wallet, int(c.FarmConfig.PooID))
 	if err != nil {
 		return big.NewInt(0), err

@@ -12,7 +12,6 @@ import (
 	"reinvest/core/farm/mdex/contracts"
 	"reinvest/utils"
 	"strings"
-	"time"
 )
 
 type PoolInfo struct {
@@ -113,7 +112,7 @@ func (c *MdexFarm) swapWithRetry(amount *big.Int, fromToken string, toToken stri
 		if keepSwap {
 			tx, err := c.SwapExactTokenTo(amount, fromToken, toToken)
 			if err != nil {
-				//log.Println(red("swap error " + err.Error()))
+				log.Println("swap error " + err.Error())
 				count++
 				continue
 			}
@@ -126,7 +125,6 @@ func (c *MdexFarm) swapWithRetry(amount *big.Int, fromToken string, toToken stri
 			sendAmountToWallet, err := c.TokenBasic.GetTxAmount(toToken, "", c.FarmConfig.Wallet, _tx)
 			if err != nil {
 				log.Println("Swap Error: " + err.Error())
-				time.Sleep(time.Minute * 5)
 				count++
 				continue
 			}

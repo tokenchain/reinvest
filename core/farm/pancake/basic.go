@@ -12,7 +12,6 @@ import (
 	"reinvest/core/farm/pancake/contracts"
 	"reinvest/utils"
 	"strings"
-	"time"
 )
 
 type PoolInfo struct {
@@ -106,7 +105,6 @@ func (c *PancakeFarm) swapWithRetry(amount *big.Int, fromToken string, toToken s
 	keepSwap := true
 	var swapTxHash string
 	for {
-
 		if count >= tryCount {
 			return nil, swapTxHash, errors.New("Swap  Too Many errors")
 		}
@@ -116,20 +114,18 @@ func (c *PancakeFarm) swapWithRetry(amount *big.Int, fromToken string, toToken s
 		if keepSwap {
 			tx, err := c.SwapExactTokenTo(amount, fromToken, toToken)
 			if err != nil {
-				//log.Println(red("swap error " + err.Error()))
+				log.Println("swap error " + err.Error())
 				count++
 				continue
 			}
 			swapTxHash = tx.Hash().String()
 		}
-		//fmt.Println(blue(fmt.Sprintf("Swap MDX -> %s Tx: %s ", tokenBInfo.Symbol, green(swapTx.Hash().String()))))
 		swapTxStatus, _tx := c.TokenBasic.WaitForBlockCompletation(swapTxHash)
 		if swapTxStatus == 1 {
 			keepSwap = false
 			sendAmountToWallet, err := c.TokenBasic.GetTxAmount(toToken, "", c.FarmConfig.Wallet, _tx)
 			if err != nil {
 				log.Println("Swap Error: " + err.Error())
-				time.Sleep(time.Minute * 5)
 				count++
 				continue
 			}

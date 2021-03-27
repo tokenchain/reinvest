@@ -74,18 +74,13 @@ func main() {
 	timer := time.NewTimer(time.Minute * time.Duration(reinvestInterval))
 	rewardToken := farm.RewardToken()
 	Run(farm)
+	PrintTotalBalance(rewardToken)
 	for {
 
 		select {
 		case <-timer.C:
 			Run(farm)
-			log.Printf(
-				"Until %s Total gas used %s  rewards %s %s\n",
-				time.Now().Format("2006-01-02 15:04:05"),
-				utils.ToDecimal(token.GasUsed, 18),
-				utils.ToDecimal(TotalReward, int(rewardToken.Decimals)),
-				rewardToken.Symbol,
-			)
+			PrintTotalBalance(rewardToken)
 			timer.Reset(time.Minute * time.Duration(reinvestInterval))
 
 		default:
@@ -97,15 +92,22 @@ func main() {
 	return
 
 }
+func PrintTotalBalance(rewardToken *token.Token) {
+	log.Printf(
+		"Until %s Total gas used %s  rewards %s %s\n",
+		time.Now().Format("2006-01-02 15:04:05"),
+		utils.ToDecimal(token.GasUsed, 18),
+		utils.ToDecimal(TotalReward, int(rewardToken.Decimals)),
+		rewardToken.Symbol,
+	)
+}
 func Run(farm farm.Farm) {
 	realPendingRewardAmount, err := farm.Harvest()
-	//fmt.Println(green(utils.ToDecimal(realPendingRewardAmount, int(rewardTokenInfo.Decimals)).String() + " " + rewardTokenInfo.Symbol + " -> " + wallet))
 	if err != nil {
 		print.Error(fmt.Sprintf("Get Pending Rewards  Err  %s \n", err.Error()))
 	}
 	if realPendingRewardAmount.Cmp(big.NewInt(0)) >= 1 {
 		TotalReward.Add(TotalReward, realPendingRewardAmount)
-		//print.Success("")
 		wishA, wishB, tokenAAddres, tokenBAddress, err := farm.SwapRewardToPairWithRetry(realPendingRewardAmount, 10)
 		if err != nil {
 			print.Error("Swap Error: " + err.Error())
@@ -124,9 +126,8 @@ func Run(farm farm.Farm) {
 			return
 		}
 		lpToken := farm.LpToken()
-		log.Println("Despoit Success ")
 		print.Success(fmt.Sprintf("Despoit %s %s Success", utils.ToDecimal(lpAmount, int(lpToken.Decimals)).String(), lpToken.Name))
-		log.Println("\n")
+		fmt.Println("\n")
 	}
 }
 func pause() {
