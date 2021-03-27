@@ -75,7 +75,7 @@ func main() {
 		pause()
 		return
 	}
-	timer := time.NewTimer(time.Second * time.Duration(reinvestInterval))
+	timer := time.NewTimer(time.Minute * time.Duration(reinvestInterval))
 	rewardToken := farm.RewardToken()
 	Run(farm)
 	for {
@@ -84,7 +84,7 @@ func main() {
 		case <-timer.C:
 			Run(farm)
 
-			timer.Reset(time.Second * time.Duration(reinvestInterval))
+			timer.Reset(time.Minute * time.Duration(reinvestInterval))
 		default:
 
 			fmt.Fprintf(
